@@ -34,7 +34,7 @@
   (gen-url [_ name opts] (gen-url route name opts)))
 
 (defn set-pre-condition [route pred]
-  (->PrefixedRoute route pred))
+  (->PreFilteredRoute route pred))
 
 (defn- escape-regex [s]
   (string/escape s #(when (>= (.indexOf "\\.*+|?()[]{}$^" (str %)) 0)
