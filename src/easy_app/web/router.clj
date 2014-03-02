@@ -15,6 +15,11 @@
                               (map #(gen-url % name opts))
                               (some identity))))
 
+(def EMPTY (->Router []))
+
+(defn add-route [router route]
+  (update-in router [:routes] conj route))
+
 (defrecord PrefixedRoute [route prefix]
   IRoute
   (match [_ uri req] (when (.startsWith uri prefix)
@@ -61,9 +66,7 @@
 (defrecord RegexRoute [name regex params parts]
   IRoute
   (match [_ uri req] (when-let [m (match-regex uri regex params)]
-                       (assoc req
-                         :params m
-                         :route name)))
+                       (merge req m {:route name})))
 
   (gen-url [_ name* opts] (when (= name* name)
                             (apply str
@@ -80,9 +83,84 @@
 
 (defn make-route
   ([name method url]
-   (-> (apply ->RegexRoute name (compile-pattern pattern))
-       #(condp = method
+   (-> (apply ->RegexRoute name (compile-pattern url))
+       (#(condp = method
           :all %
           :get (set-pre-condition % get-or-head?)
           (set-pre-condition % (fn [_ req]
-                                 (= method (:request-method req))))))))
+                                 (= method (:request-method req)))))))))
+
+;;
+;; Implicit namespace bound router
+;;
+
+(defn- var-get* [ns var-name]
+  (let [s (symbol (name ns) (name var-name))]
+    (when-let [var (find-var s)]
+      (var-get var))))
+
+(defn- get-ns-router*
+  ([]
+   (get-ns-router* (ns-name *ns*)))
+  ([ns]
+   (var-get* ns '*easy-app-router*)))
+
+(defn get-ns-router [& args]
+  (when-let [r (apply get-ns-router* args)]
+    @r))
+
+(defn load-ns-router [ns]
+  (require ns)
+  (get-ns-router ns))
+
+(defn declare-router []
+  (when-not (get-ns-router)
+    (.setDynamic (intern *ns*
+                         (with-meta '*easy-app-router* {:private true})
+                         (atom EMPTY)))))
+
+;;
+;; DSL
+;;
+
+(require '[easy-app.core :as app])
+
+(defn defroute
+  ([route]
+   (declare-router)
+   (swap! (get-ns-router*) add-route route))
+  ([method url & args]
+   (let [name (if (even? (count args))
+                (gensym url)
+                (first args))
+         opts (if (even? (count args))
+                args
+                (next args))
+         route (make-route name method url)]
+     (when (some #{:fn} args)
+       (apply app/define name opts))
+     (defroute route))))
+
+(defn at* [url & body]
+  `(do (declare-router)
+     (defroute (binding [~'*easy-app-router* (atom EMPTY)]
+                 ~@body
+                 (set-prefix ~url ~'*easy-app-router*)))))
+
+(defmacro at [url & body]
+  `(~@(apply at* url body)))
+
+(defn- upper-case-first [s]
+  (apply str (first (string/upper-case s)) (next s)))
+
+(defn gen-defroute-for-method [m]
+  `(defn ~(-> (name m) upper-case-first symbol) [& args#]
+     (apply defroute ~m args#)))
+
+(defmacro gen-defroutes []
+  `(do ~@(map gen-defroute-for-method
+              [:get
+               :head
+               :post
+               :put
+               :delete])))
