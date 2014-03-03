@@ -141,14 +141,11 @@
        (apply app/define name opts))
      (defroute route))))
 
-(defn at* [url & body]
+(defmacro defzone [url & body]
   `(do (declare-router)
      (defroute (binding [~'*easy-app-router* (atom EMPTY)]
                  ~@body
                  (set-prefix ~url ~'*easy-app-router*)))))
-
-(defmacro at [url & body]
-  `(~@(apply at* url body)))
 
 (defn- upper-case-first [s]
   (apply str (first (string/upper-case s)) (next s)))
