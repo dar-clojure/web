@@ -9,5 +9,5 @@
         server (run-jetty on-request opts)]
     (reify
       IServer
-      (stop! ([_] (.stop server))
-      (provider [_] server)))))
+      (stop! [_] (.stop server))
+      (provider [_] server))))

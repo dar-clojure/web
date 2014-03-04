@@ -1,4 +1,5 @@
 (ns easy-app.web
+  (:refer-clojure :exclude [send])
   (:require [clojure.core.async :refer [<!]]
             [easy-app.core :as co :refer [define go* <?]]
             [easy-app.web.router :as router]
@@ -63,20 +64,56 @@
         (finally
           (co/stop! app))))))
 
+(defn dispatch-http-request [app req]
+  (dispatch app (action :proc-http-request req)))
+
 ;;
-;; Http server
+;; Base/default HTTP
+;;
+
+(define :proc-http-request
+  :level :app
+  :args [:http-router ::co/self]
+  :fn (fn [routes app]
+        (with-meta
+          (fn [req]
+            (let [req (or (router/match routes (:uri req) req) req)]
+              (dispatch-on app :request {:http-req req}
+                           (action (get req :route :http-404)))))
+          {:async true})))
+
+(define :http-send
+  :args [:http-req]
+  :fn (fn [req]
+        (fn [status headers body]
+          {:status status :headers headers :body body})))
+
+(defn send
+  ([body]
+   (send 200 body))
+  ([status body]
+   (send status body {}))
+  ([status body headers]
+   (action :http-send status headers body)))
+
+(define :http-404
+  (send 404 "404 Not Found"))
+
+;;
+;; Request handler creation
 ;;
 
 (defn request-handler
-  ([app]
-   (fn [req]
-     (dispatch app (action :proc-http-request req))))
-  ([]
-   (let [routes (or (router/get-ns-router) router/EMPTY)
+  ([ns]
+   (let [routes (or (router/get-ns-router ns) router/EMPTY)
          spec (merge (co/get-ns-spec 'easy-app.web)
                      {:http-router routes}
-                     (co/get-ns-spec))]
-     (request-handler (co/make* spec)))))
+                     (co/get-ns-spec ns))
+         app (co/make* spec)]
+     (fn [req]
+       (dispatch-http-request app req))))
+  ([]
+   (request-handler (ns-name *ns*))))
 
 (defn wrap-stacktrace [handler]
   (fn [req]
@@ -91,30 +128,3 @@
 
 (defn dev-request-handler [& args]
   (wrap-stacktrace (apply request-handler args)))
-
-;;
-;; Base/default app setup
-;;
-
-(define :proc-http-request
-  :level :app
-  :args [:http-router ::co/self]
-  :fn (fn [routes app]
-        (with-meta
-          (fn [req]
-            (let [req (or (router/match routes req) req)]
-              (dispatch-on app :request {:http-req req}
-                           (action (get req :route :http-404))))
-          {:async true}))))
-
-(define :http-404
-  {:status 404
-   :body "404 Not Found"})
-
-(defn send
-  ([body]
-   (send 200 body))
-  ([status body]
-   (send status body {}))
-  ([status body headers]
-   {:status status :headers headers :body body}))

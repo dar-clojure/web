@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [easy-app/core "0.1.0-SNAPSHOT"]
                  [clj-stacktrace "0.2.7"]]
-  :profiles {:dev {:dependencies [[ring/ring-jetty-adapter "1.2.1"]]}})
+  :profiles {:dev {:dependencies [[ring/ring-jetty-adapter "1.2.1"]]
+                   :source-paths ["example"]}})
