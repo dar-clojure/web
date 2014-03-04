@@ -5,9 +5,8 @@
 
 (Get "/{greeting}"
   :args [:http-req]
-  :fn (fn [req]
-        (send (str (.toUpperCase (:greeting req))
-                   " world!"))))
+  :fn (fn [{g :greeting}]
+        (send (str g " world!"))))
 
 (jetty/run (web/dev-request-handler)
            {:port 3000})
