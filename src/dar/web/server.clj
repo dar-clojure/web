@@ -1,4 +1,4 @@
-(ns easy-app.web.server)
+(ns dar.web.server)
 
 (defprotocol IServer
   (stop! [this timeout] [this])

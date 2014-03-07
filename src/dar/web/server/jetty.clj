@@ -1,6 +1,6 @@
-(ns easy-app.web.server.jetty
-  (:require [easy-app.web.server :refer :all]
-            [easy-app.core :refer [<?!]]
+(ns dar.web.server.jetty
+  (:require [dar.web.server :refer :all]
+            [dar.core :refer [<?!]]
             [ring.adapter.jetty :refer [run-jetty]]))
 
 (defn run [handler opts]

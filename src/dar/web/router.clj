@@ -1,4 +1,4 @@
-(ns easy-app.web.router
+(ns dar.web.router
   (:require [clojure.string :as string]))
 
 (defprotocol IRoute
@@ -103,7 +103,7 @@
   ([]
    (get-ns-router* (ns-name *ns*)))
   ([ns]
-   (var-get* ns '*easy-app-router*)))
+   (var-get* ns '*dar-router*)))
 
 (defn get-ns-router [& args]
   (when-let [r (apply get-ns-router* args)]
@@ -116,14 +116,14 @@
 (defn declare-router []
   (when-not (get-ns-router)
     (.setDynamic (intern *ns*
-                         (with-meta '*easy-app-router* {:private true})
+                         (with-meta '*dar-router* {:private true})
                          (atom EMPTY)))))
 
 ;;
 ;; DSL
 ;;
 
-(require '[easy-app.core :as app])
+(require '[dar.core :as app])
 
 (defn defroute
   ([route]
@@ -143,9 +143,9 @@
 
 (defmacro defzone [url & body]
   `(do (declare-router)
-     (defroute (binding [~'*easy-app-router* (atom EMPTY)]
+     (defroute (binding [~'*dar-router* (atom EMPTY)]
                  ~@body
-                 (set-prefix ~url ~'*easy-app-router*)))))
+                 (set-prefix ~url ~'*dar-router*)))))
 
 (defn- upper-case-first [s]
   (apply str (first (string/upper-case s)) (next s)))

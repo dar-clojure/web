@@ -1,8 +1,8 @@
-(ns easy-app.web
+(ns dar.web
   (:refer-clojure :exclude [send])
   (:require [clojure.core.async :refer [<!]]
-            [easy-app.core :as co :refer [define go* <?]]
-            [easy-app.web.router :as router]
+            [dar.core :as co :refer [define go* <?]]
+            [dar.web.router :as router]
             [clj-stacktrace.repl :refer [pst-on pst-str]])
   (:import (java.lang Throwable)))
 
@@ -106,7 +106,7 @@
 (defn request-handler
   ([ns]
    (let [routes (or (router/get-ns-router ns) router/EMPTY)
-         spec (merge (co/get-ns-spec 'easy-app.web)
+         spec (merge (co/get-ns-spec 'dar.web)
                      {:http-router routes}
                      (co/get-ns-spec ns))
          app (co/make* spec)]

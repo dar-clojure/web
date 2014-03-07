@@ -1,5 +1,5 @@
-(require '[easy-app.web :as web :refer [Get send]])
-(require '[easy-app.web.server.jetty :as jetty])
+(require '[dar.web :as web :refer [Get send]])
+(require '[dar.web.server.jetty :as jetty])
 
 (Get "/"
   :fn #(send "Hello world!"))
