@@ -1,6 +1,6 @@
 (ns dar.web.server.jetty
   (:require [dar.web.server :refer :all]
-            [dar.core :refer [<?!]]
+            [dar.async :refer [<?!]]
             [ring.adapter.jetty :refer [run-jetty]]))
 
 (defn run [handler opts]

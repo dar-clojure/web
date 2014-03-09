@@ -1,7 +1,7 @@
 (ns dar.web
   (:refer-clojure :exclude [send])
-  (:require [clojure.core.async :refer [<!]]
-            [dar.core :as co :refer [define go* <?]]
+  (:require [dar.core :as App :refer [define]]
+            [dar.async :refer :all]
             [dar.web.router :as router]
             [clj-stacktrace.repl :refer [pst-on pst-str]])
   (:import (java.lang Throwable)))
@@ -37,16 +37,14 @@
 ;;
 
 (defn- do-action [app {:keys [name args]}]
-  (go*
-    (let [res (<? (co/eval app name))]
+  (go
+    (let [res (<? (App/eval app name))]
       (if (fn? res)
-        (if (:async (meta res))
-          (<? (apply res args))
-          (apply res args))
+        (<? (apply res args))
         res))))
 
 (defn dispatch [app act]
-  (go*
+  (go
     (loop [act act i 1]
       (when (> i 100) ;; TODO: revisit this
         (throw (ex-info "Max actions count (100) exceeded" {::last-action act})))
@@ -57,12 +55,12 @@
               :else res)))))
 
 (defn dispatch-on [app level params act]
-  (go*
-    (let [app (co/start app level params)]
+  (go
+    (let [app (App/start app level params)]
       (try
         (<? (dispatch app act))
         (finally
-          (co/stop! app))))))
+          (App/stop! app))))))
 
 (defn dispatch-http-request [app req]
   (dispatch app (action :proc-http-request req)))
@@ -73,14 +71,12 @@
 
 (define :proc-http-request
   :level :app
-  :args [:http-router ::co/self]
+  :args [:http-router ::App/self]
   :fn (fn [routes app]
-        (with-meta
-          (fn [req]
-            (let [req (or (router/match routes (:uri req) req) req)]
-              (dispatch-on app :request {:http-req req}
-                           (action (get req :route :http-404)))))
-          {:async true})))
+        (fn [req]
+          (let [req (or (router/match routes (:uri req) req) req)]
+            (dispatch-on app :request {:http-req req}
+                         (action (get req :route :http-404)))))))
 
 (define :http-send
   :args [:http-req]
@@ -106,10 +102,10 @@
 (defn request-handler
   ([ns]
    (let [routes (or (router/get-ns-router ns) router/EMPTY)
-         spec (merge (co/get-ns-spec 'dar.web)
+         spec (merge (App/get-ns-spec 'dar.web)
                      {:http-router routes}
-                     (co/get-ns-spec ns))
-         app (co/make* spec)]
+                     (App/get-ns-spec ns))
+         app (App/make* spec)]
      (fn [req]
        (dispatch-http-request app req))))
   ([]
@@ -117,7 +113,7 @@
 
 (defn wrap-stacktrace [handler]
   (fn [req]
-    (go*
+    (go
       (try
         (<? (handler req))
         (catch Throwable ex
